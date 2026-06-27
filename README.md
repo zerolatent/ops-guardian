@@ -3,6 +3,9 @@
 > A video-native AI that watches an industrial zone, predicts what is about to go wrong,
 > intervenes through approved tools, verifies the risk dropped, and writes the shift handover.
 
+<img width="1723" height="888" alt="Screenshot 2026-06-27 at 5 05 18 PM" src="https://github.com/user-attachments/assets/af75b719-bb45-4939-be04-20eb90b7f295" />
+
+
 ---
 
 ## The Problem
