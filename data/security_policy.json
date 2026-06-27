@@ -1,0 +1,9 @@
+{
+  "site_id": "demo_dc",
+  "p0_security_conditions": ["visible_weapon", "active_assault", "forced_entry_restricted_area", "credible_active_threat"],
+  "ambiguous_conditions": ["loitering", "nonviolent_policy_violation", "low_confidence_presence"],
+  "forced_entry_restricted_area": {
+    "notify_security": true,
+    "mock_police_allowed": true
+  }
+}

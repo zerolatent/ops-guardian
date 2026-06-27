@@ -1,0 +1,11 @@
+{
+  "site_id": "demo_dc",
+  "medical": {
+    "motionless_threshold_seconds": 15,
+    "responders": ["onsite_first_responder", "shift_supervisor", "mock_ems"],
+    "callback_route": "demo-command-center"
+  },
+  "fire": {
+    "responders": ["shift_supervisor", "mock_fire"]
+  }
+}

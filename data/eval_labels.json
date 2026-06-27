@@ -1,0 +1,38 @@
+{
+  "safety_forklift_near_miss": {
+    "expected_event_class": "preventive_safety",
+    "expected_max_severity": "P2",
+    "expect_emergency": false,
+    "expect_tools_include": ["activate_warning_beacon", "notify_shift_lead", "verify_risk_reduced"]
+  },
+  "operations_conveyor_jam": {
+    "expected_event_class": "preventive_operations",
+    "expected_max_severity": "P3",
+    "expect_emergency": false,
+    "expect_tools_include": ["query_mes", "query_cmms", "create_preventive_task"]
+  },
+  "quality_missing_insert": {
+    "expected_event_class": "preventive_quality",
+    "expected_max_severity": "P3",
+    "expect_emergency": false,
+    "expect_tools_include": ["create_quality_hold", "pause_work_release", "notify_quality_lead"]
+  },
+  "medical_worker_collapse": {
+    "expected_event_class": "p0_medical_emergency",
+    "expected_max_severity": "P0",
+    "expect_emergency": true,
+    "expect_tools_include": ["open_emergency_incident_card", "call_ems", "notify_onsite_first_responder"]
+  },
+  "security_forced_entry": {
+    "expected_event_class": "p0_security_emergency",
+    "expected_max_severity": "P0",
+    "expect_emergency": true,
+    "expect_tools_include": ["open_emergency_incident_card", "call_police", "notify_security"]
+  },
+  "adaptability_sop_swap": {
+    "expected_event_class": "adaptability",
+    "expected_max_severity": "P2",
+    "expect_emergency": false,
+    "expect_tools_include": ["retrieve_sop", "notify_shift_lead", "create_preventive_task"]
+  }
+}

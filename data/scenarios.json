@@ -1,0 +1,68 @@
+[
+  {
+    "scenario_id": "safety_forklift_near_miss",
+    "title": "Prevent Forklift/Pedestrian Near Miss",
+    "description": "Worker and loaded forklift converge near Dock Intersection A with a blocked mirror.",
+    "clip_path": "data/videos/forklift_pedestrian_convergence.mp4",
+    "camera_ids": ["CAM-DOCK-A"],
+    "zone_id": "dock_intersection_a",
+    "expected_event_class": "preventive_safety",
+    "data_source_ids": ["traffic_sop_v1", "site_map"],
+    "max_steps": 2
+  },
+  {
+    "scenario_id": "operations_conveyor_jam",
+    "title": "Prevent Conveyor Jam",
+    "description": "Boxes accumulate at Conveyor Transfer C7 and match a prior stoppage pattern.",
+    "clip_path": "data/videos/conveyor_queue_buildup.mp4",
+    "camera_ids": ["CAM-CONV-C7"],
+    "zone_id": "conveyor_transfer_c7",
+    "expected_event_class": "preventive_operations",
+    "data_source_ids": ["mes_events", "cmms_assets"],
+    "max_steps": 2
+  },
+  {
+    "scenario_id": "quality_missing_insert",
+    "title": "Prevent Quality Escape",
+    "description": "Carton is about to be sealed before required ACME instruction insert.",
+    "clip_path": "data/videos/packout_missing_insert.mp4",
+    "camera_ids": ["CAM-PACK-02"],
+    "zone_id": "pack_station_02",
+    "expected_event_class": "preventive_quality",
+    "data_source_ids": ["packout_sop_acme", "wms_orders"],
+    "max_steps": 2
+  },
+  {
+    "scenario_id": "medical_worker_collapse",
+    "title": "Worker Collapse Medical Emergency",
+    "description": "Worker collapses near active forklift traffic and remains motionless beyond threshold.",
+    "clip_path": "data/videos/worker_collapse.mp4",
+    "camera_ids": ["CAM-DOCK-03"],
+    "zone_id": "outbound_dock_3",
+    "expected_event_class": "p0_medical_emergency",
+    "data_source_ids": ["emergency_action_plan", "site_map"],
+    "max_steps": 2
+  },
+  {
+    "scenario_id": "security_forced_entry",
+    "title": "Forced Entry Security Incident",
+    "description": "After-hours forced entry into a restricted area without a badge match.",
+    "clip_path": "data/videos/forced_entry_restricted_area.mp4",
+    "camera_ids": ["CAM-RESTRICTED-DOOR"],
+    "zone_id": "restricted_cage_door",
+    "expected_event_class": "p0_security_emergency",
+    "data_source_ids": ["security_policy", "access_control"],
+    "max_steps": 2
+  },
+  {
+    "scenario_id": "adaptability_sop_swap",
+    "title": "SOP Swap Adaptability",
+    "description": "Cold-chain traffic SOP changes pedestrian crossing rule from Gate A to Gate B.",
+    "clip_path": "data/videos/new_angle_dock_intersection.mp4",
+    "camera_ids": ["CAM-DOCK-B"],
+    "zone_id": "dock_intersection_a",
+    "expected_event_class": "adaptability",
+    "data_source_ids": ["traffic_sop_v1", "traffic_sop_v2_cold_chain"],
+    "max_steps": 2
+  }
+]

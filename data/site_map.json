@@ -1,0 +1,40 @@
+{
+  "site_id": "demo_dc",
+  "site_name": "Demo Distribution Center",
+  "building": "Building B",
+  "zones": {
+    "dock_intersection_a": {
+      "label": "Dock Intersection A",
+      "nearest_entry": "South Roll-Up Door",
+      "nearest_aed": "Breakroom AED",
+      "camera_ids": ["CAM-DOCK-A", "CAM-DOCK-B"],
+      "hazards": ["forklift lane", "blocked sightline risk"],
+      "egress_paths": ["South pedestrian exit"]
+    },
+    "conveyor_transfer_c7": {
+      "label": "Conveyor Transfer C7",
+      "nearest_entry": "West Maintenance Door",
+      "camera_ids": ["CAM-CONV-C7"],
+      "hazards": ["pinch point", "jam risk"]
+    },
+    "pack_station_02": {
+      "label": "Pack Station 02",
+      "nearest_entry": "South Roll-Up Door",
+      "camera_ids": ["CAM-PACK-02"],
+      "hazards": ["quality escape risk"]
+    },
+    "outbound_dock_3": {
+      "label": "Outbound Dock 3",
+      "nearest_entry": "South Roll-Up Door",
+      "nearest_aed": "Breakroom AED",
+      "camera_ids": ["CAM-DOCK-03"],
+      "hazards": ["active forklift traffic"]
+    },
+    "restricted_cage_door": {
+      "label": "Restricted Cage Door",
+      "nearest_entry": "North Security Entrance",
+      "camera_ids": ["CAM-RESTRICTED-DOOR"],
+      "hazards": ["restricted inventory", "after-hours security risk"]
+    }
+  }
+}

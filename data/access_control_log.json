@@ -1,0 +1,10 @@
+{
+  "doors": {
+    "restricted_door": {
+      "door_id": "restricted_door",
+      "last_5_minutes": [
+        {"timestamp": "2026-06-27T22:41:00-05:00", "badge_id": null, "result": "forced_open"}
+      ]
+    }
+  }
+}

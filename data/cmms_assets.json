@@ -1,0 +1,12 @@
+{
+  "assets": {
+    "asset_c7": {
+      "asset_id": "asset_c7",
+      "name": "Conveyor Transfer C7",
+      "open_work_orders": [],
+      "prior_faults": [
+        {"date": "2026-06-25", "fault": "roller bed drag caused carton skew"}
+      ]
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "lines": {
+    "line_c7": {
+      "line_id": "line_c7",
+      "status": "running",
+      "line_speed": "high",
+      "last_10_minutes": [
+        {"timestamp": "2026-06-27T10:33:00-05:00", "event": "minor_queue_growth", "queue_count": 8},
+        {"timestamp": "2026-06-27T10:38:00-05:00", "event": "queue_growth", "queue_count": 15}
+      ],
+      "prior_stoppage_pattern": "queue_count above 12 for more than 3 minutes"
+    }
+  }
+}

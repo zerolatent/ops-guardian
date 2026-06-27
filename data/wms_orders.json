@@ -1,0 +1,14 @@
+{
+  "orders": {
+    "A-1048": {
+      "order_id": "A-1048",
+      "carton_id": "CTN-A-1048-03",
+      "sku": "ACME-COLDKIT",
+      "dock_door": "Dock 3",
+      "staging_lane": "Lane A",
+      "shipment_status": "not_released",
+      "required_insert": "ACME instruction insert v3",
+      "quality_hold": false
+    }
+  }
+}
