@@ -1,0 +1,1429 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Line Guardian</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #edf3f2;
+        --panel: rgba(255, 255, 255, 0.86);
+        --panel-solid: #ffffff;
+        --panel-soft: #f7faf9;
+        --ink: #111922;
+        --muted: #607181;
+        --faint: #8a9aa8;
+        --line: #d5dfdf;
+        --line-strong: #aebdbc;
+        --night: #111b24;
+        --night-2: #172532;
+        --teal: #0f766e;
+        --teal-bright: #19b5a5;
+        --teal-soft: #dff5f1;
+        --blue: #2563eb;
+        --blue-soft: #e4edff;
+        --amber: #b45309;
+        --amber-soft: #fff1cc;
+        --red: #b91c1c;
+        --red-soft: #fee2e2;
+        --green: #15803d;
+        --green-soft: #ddf8e6;
+        --shadow: 0 20px 60px rgba(17, 25, 34, 0.1);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-width: 320px;
+        min-height: 100vh;
+        background:
+          linear-gradient(90deg, rgba(15, 118, 110, 0.05) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px),
+          var(--bg);
+        background-size: 44px 44px;
+        color: var(--ink);
+        font: 14px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      button,
+      select {
+        font: inherit;
+      }
+
+      button {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-solid);
+        color: var(--ink);
+        cursor: pointer;
+        font-weight: 750;
+      }
+
+      button:hover {
+        border-color: var(--line-strong);
+        background: var(--panel-soft);
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.42;
+      }
+
+      button.primary {
+        border-color: var(--teal);
+        background: var(--teal);
+        color: #ffffff;
+      }
+
+      button.primary:hover {
+        background: #0b625c;
+      }
+
+      select {
+        min-height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-solid);
+        color: var(--ink);
+        padding: 0 10px;
+        max-width: 300px;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(174, 189, 188, 0.6);
+        background: rgba(237, 243, 242, 0.86);
+        backdrop-filter: blur(18px);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .mark {
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        display: grid;
+        place-items: center;
+        background: var(--night);
+        color: #ffffff;
+        font-weight: 900;
+      }
+
+      .brand h1 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.15;
+        letter-spacing: 0;
+      }
+
+      .brand p {
+        margin: 3px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .controlbar {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .chip {
+        min-height: 28px;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.72);
+        color: var(--muted);
+        padding: 4px 10px;
+        font-size: 12px;
+        font-weight: 760;
+        white-space: nowrap;
+      }
+
+      .dot {
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: var(--faint);
+      }
+
+      .dot.ok {
+        background: var(--green);
+      }
+
+      .dot.warn {
+        background: var(--amber);
+      }
+
+      .dot.danger {
+        background: var(--red);
+      }
+
+      .shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 16px;
+        padding: 18px;
+        min-height: 0;
+      }
+
+      .focus {
+        min-width: 0;
+        display: grid;
+        gap: 14px;
+        align-content: start;
+      }
+
+      .panel {
+        border: 1px solid rgba(174, 189, 188, 0.72);
+        border-radius: 8px;
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        backdrop-filter: blur(18px);
+      }
+
+      .now {
+        display: grid;
+        grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+        min-height: 560px;
+        overflow: hidden;
+      }
+
+      .sensor {
+        min-width: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        background:
+          linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
+          var(--night);
+        background-size: 42px 42px;
+        color: #ffffff;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .sensor::after {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(115deg, transparent 0 42%, rgba(25, 181, 165, 0.11) 46%, transparent 52% 100%);
+        pointer-events: none;
+        z-index: 1;
+      }
+
+      .camera-video {
+        position: absolute;
+        inset: 0;
+        z-index: 0;
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        opacity: 0;
+        transition: opacity 180ms ease;
+      }
+
+      .sensor.has-video .camera-video {
+        opacity: 0.82;
+      }
+
+      .sensor.has-video::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: linear-gradient(180deg, rgba(17, 27, 36, 0.38), rgba(17, 27, 36, 0.72));
+        pointer-events: none;
+      }
+
+      .sensor-top,
+      .sensor-bottom {
+        position: relative;
+        z-index: 2;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 16px;
+        background: rgba(17, 27, 36, 0.76);
+      }
+
+      .sensor-top > *,
+      .sensor-bottom > * {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .sensor-body {
+        position: relative;
+        z-index: 2;
+        display: grid;
+        place-items: center;
+        padding: 28px;
+      }
+
+      .sensor.has-video .sensor-body {
+        display: none;
+      }
+
+      .signal-card {
+        width: min(100%, 620px);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.08);
+        padding: 24px;
+        box-shadow: 0 18px 60px rgba(0, 0, 0, 0.24);
+      }
+
+      .sensor.has-video .signal-card {
+        background: rgba(17, 27, 36, 0.58);
+        backdrop-filter: blur(10px);
+      }
+
+      .eyebrow {
+        display: block;
+        color: #9be4dc;
+        font-size: 12px;
+        font-weight: 850;
+        text-transform: uppercase;
+      }
+
+      .signal-card h2 {
+        margin: 8px 0 0;
+        font-size: 26px;
+        line-height: 1.08;
+        letter-spacing: 0;
+        overflow-wrap: anywhere;
+      }
+
+      .signal-card p {
+        margin: 12px 0 0;
+        color: #d5e3e7;
+        max-width: 58ch;
+        overflow-wrap: anywhere;
+      }
+
+      .entity-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        margin-top: 18px;
+      }
+
+      .entity {
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.1);
+        color: #f1fbfa;
+        padding: 5px 9px;
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .decision {
+        min-width: 0;
+        display: grid;
+        align-content: stretch;
+        padding: 18px;
+        background: rgba(255, 255, 255, 0.92);
+      }
+
+      .demo-story {
+        display: grid;
+        gap: 12px;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .decision.idle .demo-story {
+        padding-bottom: 0;
+        margin-bottom: 0;
+        border-bottom: 0;
+      }
+
+      .decision.idle .decision-head,
+      .decision.idle .metrics,
+      .decision.idle .decision-body {
+        display: none;
+      }
+
+      .story-label {
+        display: inline-flex;
+        width: fit-content;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel-soft);
+        color: var(--muted);
+        padding: 4px 9px;
+        font-size: 11px;
+        font-weight: 850;
+        text-transform: uppercase;
+      }
+
+      .story-copy {
+        margin: 6px 0 0;
+        color: var(--ink);
+        font-size: 15px;
+        line-height: 1.45;
+      }
+
+      .decision-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .decision-head h2 {
+        margin: 0;
+        font-size: 13px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0;
+      }
+
+      .decision-title {
+        margin: 6px 0 0;
+        color: var(--ink);
+        font-size: 28px;
+        line-height: 1.08;
+        font-weight: 900;
+        overflow-wrap: anywhere;
+      }
+
+      .severity {
+        min-width: 38px;
+        border-radius: 8px;
+        padding: 5px 8px;
+        text-align: center;
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .severity.P0 {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .severity.P1,
+      .severity.P2 {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .severity.P3 {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        border-radius: 999px;
+        padding: 4px 9px;
+        background: #e7edf0;
+        color: #435363;
+        font-size: 12px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .status.mitigated,
+      .status.completed,
+      .status.acknowledged {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .status.escalated,
+      .status.failed {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .status.active,
+      .status.predicted,
+      .status.unresolved,
+      .status.sent,
+      .status.created {
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 8px;
+        margin-top: 18px;
+      }
+
+      .metric {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel-soft);
+        padding: 10px;
+        min-width: 0;
+      }
+
+      .metric strong {
+        display: block;
+        color: var(--ink);
+        font-size: 19px;
+        line-height: 1.1;
+      }
+
+      .metric span {
+        display: block;
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+
+      .decision-body {
+        display: grid;
+        gap: 16px;
+        padding-top: 18px;
+      }
+
+      .block-title {
+        margin: 0 0 6px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 900;
+      }
+
+      .quiet {
+        margin: 0;
+        color: var(--muted);
+      }
+
+      .mini-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+      }
+
+      .mini-action {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--panel-soft);
+        padding: 6px 10px;
+        color: var(--ink);
+        font-size: 12px;
+        font-weight: 760;
+      }
+
+      .side {
+        display: none;
+        gap: 14px;
+        align-content: start;
+        min-width: 0;
+      }
+
+      .side-panel {
+        border: 1px solid rgba(174, 189, 188, 0.72);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.82);
+        backdrop-filter: blur(18px);
+        overflow: hidden;
+      }
+
+      .side-head {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 12px 14px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .side-head h2 {
+        margin: 0;
+        font-size: 13px;
+        letter-spacing: 0;
+      }
+
+      .side-body {
+        padding: 12px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 8px;
+      }
+
+      .risk-row,
+      .action-row,
+      .detail-row {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.76);
+        padding: 10px;
+      }
+
+      .risk-row {
+        width: 100%;
+        min-height: auto;
+        text-align: left;
+      }
+
+      .risk-row.active {
+        border-color: var(--teal);
+        box-shadow: inset 3px 0 0 var(--teal);
+      }
+
+      .row-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .row-title {
+        color: var(--ink);
+        font-weight: 850;
+        overflow-wrap: anywhere;
+      }
+
+      .row-meta {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        flex-wrap: wrap;
+        margin-top: 7px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .empty {
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.52);
+        color: var(--muted);
+        padding: 14px;
+      }
+
+      .emergency {
+        display: none;
+        border-color: #f3a4a4;
+        background: rgba(255, 245, 245, 0.94);
+      }
+
+      .emergency.active {
+        display: block;
+      }
+
+      .emergency .side-head {
+        border-bottom-color: #f5c7c7;
+      }
+
+      .emergency h2,
+      .emergency .row-title {
+        color: var(--red);
+      }
+
+      .details {
+        margin: 0 18px 18px;
+        overflow: hidden;
+      }
+
+      .details.idle {
+        display: none;
+      }
+
+      .details-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .tabs {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      .tab {
+        min-height: 34px;
+        padding: 0 12px;
+      }
+
+      .tab.active {
+        border-color: var(--teal);
+        background: var(--teal-soft);
+        color: #075f57;
+      }
+
+      .details-body {
+        padding: 12px;
+      }
+
+      .detail-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      pre {
+        margin: 0;
+        max-height: 360px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        color: var(--ink);
+        font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border: 0;
+      }
+
+      @media (max-width: 1180px) {
+        .shell {
+          grid-template-columns: 1fr;
+        }
+
+        .side {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 860px) {
+        .topbar {
+          grid-template-columns: 1fr;
+        }
+
+        .controlbar {
+          justify-content: stretch;
+        }
+
+        .controlbar > * {
+          flex: 1 1 auto;
+        }
+
+        select {
+          max-width: none;
+        }
+
+        .now,
+        .side,
+        .detail-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .sensor {
+          min-height: 360px;
+        }
+      }
+
+      @media (max-width: 520px) {
+        .shell,
+        .details {
+          margin: 0;
+          padding: 12px;
+        }
+
+        .details {
+          padding-top: 0;
+        }
+
+        .controlbar button {
+          flex-basis: calc(50% - 4px);
+        }
+
+        .signal-card h2,
+        .decision-title {
+          font-size: 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <div class="mark">LG</div>
+          <div>
+            <h1>Line Guardian</h1>
+            <p>Preventive shift supervisor</p>
+          </div>
+        </div>
+        <div class="controlbar">
+          <span class="chip"><span class="dot" id="connectionDot"></span><span id="connectionText">Connecting</span></span>
+          <label>
+            <span class="sr-only">Scenario</span>
+            <select id="scenarioSelect"></select>
+          </label>
+          <button id="start" class="primary">Start</button>
+          <button id="step">Step</button>
+          <button id="complete">Complete</button>
+          <button id="reset">Reset</button>
+        </div>
+      </header>
+
+      <main class="shell">
+        <section class="focus">
+          <section class="panel now">
+            <div class="sensor" id="sensorPanel">
+              <video id="cameraVideo" class="camera-video" muted autoplay loop playsinline></video>
+              <div class="sensor-top">
+                <strong id="cameraLabel">No camera</strong>
+                <span id="runState" class="chip">Idle</span>
+              </div>
+              <div class="sensor-body">
+                <div class="signal-card">
+                  <span class="eyebrow" id="zoneLabel">Active zone</span>
+                  <h2 id="scenarioTitle">Select a scenario</h2>
+                  <p id="observationSummary">Start a run to see the current operational signal.</p>
+                  <div class="entity-row" id="entityRow"></div>
+                </div>
+              </div>
+              <div class="sensor-bottom">
+                <span id="clipLabel">No clip loaded</span>
+                <span id="windowLabel">0s - 0s</span>
+              </div>
+            </div>
+
+            <div class="decision" id="decisionPanel">
+              <div class="demo-story">
+                <div>
+                  <span class="story-label">Video evidence</span>
+                  <p class="story-copy" id="videoEvidenceText">Select a scenario to load the camera clip.</p>
+                </div>
+                <div>
+                  <span class="story-label">System output</span>
+                  <p class="story-copy" id="systemOutputText">Run the demo to see the predicted risk and intervention.</p>
+                </div>
+              </div>
+              <div class="decision-head">
+                <div>
+                  <h2>Primary Focus</h2>
+                  <div class="decision-title" id="primaryTitle">No active risk</div>
+                </div>
+                <span id="primarySeverity" class="severity P3">OK</span>
+              </div>
+              <div class="metrics" id="metrics"></div>
+              <div class="decision-body">
+                <div>
+                  <p class="block-title">Recommended next move</p>
+                  <p class="quiet" id="recommendationText">Start or step through a scenario.</p>
+                </div>
+                <div>
+                  <p class="block-title">Signal confidence</p>
+                  <div class="mini-actions" id="confidenceRow"></div>
+                </div>
+                <div>
+                  <p class="block-title">Recent actions</p>
+                  <div class="mini-actions" id="recentActionRow"></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <aside class="side">
+          <section class="side-panel emergency" id="emergencyPanel">
+            <div class="side-head">
+              <h2>Emergency</h2>
+              <span class="severity P0">P0</span>
+            </div>
+            <div class="side-body" id="emergencyBody"></div>
+          </section>
+
+          <section class="side-panel">
+            <div class="side-head">
+              <h2>Risk Queue</h2>
+              <span class="chip" id="riskCount">0</span>
+            </div>
+            <div class="side-body">
+              <div class="stack" id="riskQueue"></div>
+            </div>
+          </section>
+
+          <section class="side-panel">
+            <div class="side-head">
+              <h2>Action Queue</h2>
+              <span class="chip" id="actionCount">0</span>
+            </div>
+            <div class="side-body">
+              <div class="stack" id="actionQueue"></div>
+            </div>
+          </section>
+        </aside>
+      </main>
+
+      <section class="panel details idle" id="detailsPanel">
+        <div class="details-top">
+          <div class="tabs" id="detailTabs"></div>
+          <span class="chip" id="runMeta">No run</span>
+        </div>
+        <div class="details-body" id="detailBody"></div>
+      </section>
+    </div>
+
+    <script>
+      const state = {
+        scenarios: [],
+        currentRun: null,
+        selectedScenarioId: null,
+        selectedRiskId: null,
+        detailView: "evidence",
+      };
+
+      const tabs = ["evidence", "timeline", "handover", "tools", "audit"];
+      const scenarioNarratives = {
+        safety_forklift_near_miss: {
+          video: "A forklift and pedestrian are converging in Dock Intersection A.",
+          output: "Prevent the near miss: warn the area, notify the lead, and confirm the crossing clears.",
+        },
+        operations_conveyor_jam: {
+          video: "Cartons are backing up at Conveyor Transfer C7 while the belt is still moving.",
+          output: "Prevent the jam: flag the queue buildup, slow the infeed, and create a maintenance check before the line stops.",
+        },
+        quality_missing_insert: {
+          video: "A carton moves through packout before the final shipment release point.",
+          output: "Prevent a quality escape: enforce the ACME insert rule, pause release, and create a QA hold.",
+        },
+        medical_worker_collapse: {
+          video: "A worker is down and motionless near outbound dock traffic.",
+          output: "Treat as a P0 medical event: safe-stop the area, notify responders, and prepare the EMS handoff.",
+        },
+        security_forced_entry: {
+          video: "Restricted-door footage is paired with an after-hours access-control event.",
+          output: "Confirm forced entry: correlate the door event, notify security, and open the emergency path only when policy requires it.",
+        },
+        adaptability_sop_swap: {
+          video: "A dock camera shows traffic during a cold-chain loading rule change.",
+          output: "Apply the new SOP: route pedestrians away from Gate A during cold-chain loading.",
+        },
+      };
+      const $ = (id) => document.getElementById(id);
+      const pretty = (value) => JSON.stringify(value, null, 2);
+      const escapeHtml = (value) => String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+      const titleize = (value) => String(value || "")
+        .replaceAll("_", " ")
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+
+      async function api(path, options = {}) {
+        const response = await fetch(path, {
+          headers: { "Content-Type": "application/json" },
+          ...options,
+        });
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({ detail: response.statusText }));
+          throw new Error(error.detail || response.statusText);
+        }
+        return response.json();
+      }
+
+      function setConnection(status, text) {
+        $("connectionDot").className = `dot ${status}`;
+        $("connectionText").textContent = text;
+      }
+
+      function activeScenario() {
+        return state.currentRun?.scenario || state.scenarios.find((scenario) => scenario.scenario_id === state.selectedScenarioId);
+      }
+
+      function videoUrlForScenario(scenario) {
+        const clipPath = scenario?.clip_path || "";
+        const filename = clipPath.split("/").pop();
+        if (!filename || !filename.endsWith(".mp4")) return null;
+        return `/media/videos/${encodeURIComponent(filename)}`;
+      }
+
+      function clipFilename(scenario) {
+        return (scenario?.clip_path || "").split("/").pop() || "No clip loaded";
+      }
+
+      function renderCameraVideo() {
+        const scenario = activeScenario();
+        const video = $("cameraVideo");
+        const sensor = $("sensorPanel");
+        const url = videoUrlForScenario(scenario);
+        if (!url) {
+          video.pause();
+          video.removeAttribute("src");
+          video.dataset.src = "";
+          sensor.classList.remove("has-video");
+          return;
+        }
+        video.onerror = () => {
+          sensor.classList.remove("has-video");
+        };
+        video.oncanplay = () => {
+          sensor.classList.add("has-video");
+          video.play().catch(() => {});
+        };
+        if (video.dataset.src !== url) {
+          video.dataset.src = url;
+          video.src = url;
+          video.load();
+        } else {
+          sensor.classList.add("has-video");
+          video.play().catch(() => {});
+        }
+      }
+
+      function activeRisks(run = state.currentRun) {
+        if (!run) return [];
+        const severityRank = { P0: 0, P1: 1, P2: 2, P3: 3 };
+        return [...(run.risks || [])]
+          .filter((risk) => ["active", "predicted", "unresolved", "escalated"].includes(risk.status))
+          .sort((a, b) => {
+            const scoreA = Number(a.risk_score ?? -1);
+            const scoreB = Number(b.risk_score ?? -1);
+            return scoreB - scoreA || (severityRank[a.severity] ?? 9) - (severityRank[b.severity] ?? 9);
+          });
+      }
+
+      function primaryRisk() {
+        const risks = activeRisks();
+        if (state.selectedRiskId) {
+          return risks.find((risk) => risk.risk_id === state.selectedRiskId) || risks[0] || null;
+        }
+        return risks[0] || null;
+      }
+
+      function latestObservation() {
+        return state.currentRun?.observations?.at(-1) || null;
+      }
+
+      function openActions() {
+        return (state.currentRun?.actions || []).filter((action) => !["completed", "failed"].includes(action.status));
+      }
+
+      function timeLabel(value) {
+        if (!value) return "now";
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "now";
+        return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      }
+
+      function compactId(value) {
+        if (!value) return "";
+        const text = String(value);
+        const parts = text.split("-");
+        return parts.length > 1 ? `${parts[0]}-${parts.at(-1).slice(0, 5)}` : text;
+      }
+
+      function observationText(observation) {
+        if (!observation) return "No observation has been processed yet.";
+        const signals = [
+          ...(observation.hazards || []),
+          ...(observation.movement || []),
+          ...(observation.posture || []),
+        ];
+        return signals[0] || observation.workflow_step || "Scene observation recorded.";
+      }
+
+      function renderScenarioPicker() {
+        $("scenarioSelect").innerHTML = state.scenarios.map((scenario) => `
+          <option value="${escapeHtml(scenario.scenario_id)}">${escapeHtml(scenario.title)}</option>
+        `).join("");
+        if (state.selectedScenarioId) $("scenarioSelect").value = state.selectedScenarioId;
+      }
+
+      function renderRunState() {
+        const run = state.currentRun;
+        const scenario = activeScenario();
+        renderCameraVideo();
+        $("decisionPanel").classList.toggle("idle", !run);
+        $("detailsPanel").classList.toggle("idle", !run);
+        $("runState").textContent = run ? `${titleize(run.status)} ${run.step_index}/${run.scenario.max_steps}` : "Idle";
+        $("runMeta").textContent = run ? `${compactId(run.run_id)} - ${scenario?.zone_id || "zone"}` : "No run";
+        $("step").disabled = !run || run.status === "completed";
+        $("complete").disabled = !run || run.status === "completed";
+        $("scenarioTitle").textContent = scenario?.title || "Select a scenario";
+        $("zoneLabel").textContent = scenario?.zone_id || "Active zone";
+        $("cameraLabel").textContent = scenario?.camera_ids?.join(", ") || "No camera";
+        $("clipLabel").textContent = clipFilename(scenario);
+        const step = Math.max((run?.step_index || 0) - 1, 0);
+        $("windowLabel").textContent = run ? `${step * 5}s - ${step * 5 + 5}s` : "0s - 0s";
+      }
+
+      function renderNarrative() {
+        const scenario = activeScenario();
+        const narrative = scenarioNarratives[scenario?.scenario_id] || {
+          video: scenario?.description || "Camera evidence is loaded for the selected scenario.",
+          output: "Run the demo to see how the system turns the video into a preventive intervention.",
+        };
+        $("videoEvidenceText").textContent = narrative.video;
+        $("systemOutputText").textContent = narrative.output;
+      }
+
+      function renderSensor() {
+        const observation = latestObservation();
+        $("observationSummary").textContent = observation ? observationText(observation) : (activeScenario()?.description || "Start a run to see the current operational signal.");
+        const entities = observation?.visible_entities || [];
+        $("entityRow").innerHTML = entities.length
+          ? entities.map((entity) => `<span class="entity">${escapeHtml(entity)}</span>`).join("")
+          : `<span class="entity">waiting for signal</span>`;
+      }
+
+      function renderMetrics() {
+        const run = state.currentRun;
+        const scorecard = run?.scorecard || {};
+        const metrics = [
+          ["Open risks", activeRisks().length],
+          ["Open actions", openActions().length],
+          ["Incidents", run?.incidents?.length || 0],
+          ["Verified", scorecard.verified_reductions ?? (run?.risks || []).filter((risk) => risk.status === "mitigated").length],
+        ];
+        $("metrics").innerHTML = metrics.map(([label, value]) => `
+          <div class="metric"><strong>${escapeHtml(value)}</strong><span>${escapeHtml(label)}</span></div>
+        `).join("");
+      }
+
+      function renderPrimary() {
+        const risk = primaryRisk();
+        const actions = state.currentRun?.actions || [];
+        if (!risk) {
+          $("primaryTitle").textContent = "No active risk";
+          $("primarySeverity").className = "severity P3";
+          $("primarySeverity").textContent = "OK";
+          $("recommendationText").textContent = state.currentRun ? "Monitoring complete. Review handover details below." : "Start or step through a scenario.";
+          $("confidenceRow").innerHTML = `<span class="mini-action">no risk selected</span>`;
+        } else {
+          $("primaryTitle").textContent = titleize(risk.risk_type);
+          $("primarySeverity").className = `severity ${risk.severity}`;
+          $("primarySeverity").textContent = risk.severity;
+          $("recommendationText").textContent = (risk.recommended_actions || [])[0] || "Review evidence and assign owner.";
+          $("confidenceRow").innerHTML = [
+            `${Math.round(Number(risk.confidence || 0) * 100)}% confidence`,
+            `${risk.probability || "medium"} probability`,
+            risk.time_to_event_seconds ? `${risk.time_to_event_seconds}s to event` : "time unknown",
+            titleize(risk.status),
+          ].map((item) => `<span class="mini-action">${escapeHtml(item)}</span>`).join("");
+        }
+        const recent = actions.slice(-3).reverse();
+        $("recentActionRow").innerHTML = recent.length
+          ? recent.map((action) => `<span class="mini-action">${escapeHtml(titleize(action.action_type))}: ${escapeHtml(titleize(action.status))}</span>`).join("")
+          : `<span class="mini-action">no actions yet</span>`;
+      }
+
+      function renderRiskQueue() {
+        const risks = activeRisks();
+        $("riskCount").textContent = String(risks.length);
+        if (!state.selectedRiskId && risks.length) state.selectedRiskId = risks[0].risk_id;
+        if (!risks.some((risk) => risk.risk_id === state.selectedRiskId)) state.selectedRiskId = risks[0]?.risk_id || null;
+        $("riskQueue").innerHTML = risks.length ? risks.map((risk) => `
+          <button class="risk-row ${risk.risk_id === state.selectedRiskId ? "active" : ""}" data-risk-id="${escapeHtml(risk.risk_id)}">
+            <div class="row-top">
+              <div class="row-title">${escapeHtml(titleize(risk.risk_type))}</div>
+              <span class="severity ${escapeHtml(risk.severity)}">${escapeHtml(risk.severity)}</span>
+            </div>
+            <div class="row-meta">
+              <span>${escapeHtml(risk.zone_id)}</span>
+              <span>${Math.round(Number(risk.confidence || 0) * 100)}%</span>
+              <span class="status ${escapeHtml(risk.status)}">${escapeHtml(titleize(risk.status))}</span>
+            </div>
+          </button>
+        `).join("") : `<div class="empty">No active risks.</div>`;
+        document.querySelectorAll("[data-risk-id]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.selectedRiskId = button.dataset.riskId;
+            renderAll();
+          });
+        });
+      }
+
+      function renderActionQueue() {
+        const actions = openActions();
+        $("actionCount").textContent = String(actions.length);
+        $("actionQueue").innerHTML = actions.length ? actions.slice().reverse().slice(0, 5).map((action) => `
+          <div class="action-row">
+            <div class="row-top">
+              <div class="row-title">${escapeHtml(titleize(action.action_type))}</div>
+              <span class="status ${escapeHtml(action.status)}">${escapeHtml(titleize(action.status))}</span>
+            </div>
+            <div class="row-meta">
+              <span>${escapeHtml(action.owner_role)}</span>
+              <span>${escapeHtml(timeLabel(action.created_at))}</span>
+            </div>
+          </div>
+        `).join("") : `<div class="empty">No open actions.</div>`;
+      }
+
+      function renderEmergency() {
+        const incidents = state.currentRun?.incidents || [];
+        const p0 = activeRisks().find((risk) => risk.severity === "P0");
+        $("emergencyPanel").classList.toggle("active", Boolean(incidents.length || p0));
+        if (!incidents.length && !p0) {
+          $("emergencyBody").innerHTML = "";
+          return;
+        }
+        const incident = incidents.at(-1);
+        if (incident) {
+          $("emergencyBody").innerHTML = `
+            <div class="detail-row">
+              <div class="row-title">${escapeHtml(titleize(incident.emergency_type))} emergency</div>
+              <div class="row-meta">
+                <span>${escapeHtml(incident.zone_id)}</span>
+                <span>${escapeHtml(incident.nearest_entry)}</span>
+                <span class="status ${escapeHtml(incident.status)}">${escapeHtml(titleize(incident.status))}</span>
+              </div>
+              <p class="quiet" style="margin-top: 8px;">${escapeHtml((incident.responders_notified || []).join(", ") || "Responders pending")}</p>
+            </div>
+          `;
+        } else {
+          $("emergencyBody").innerHTML = `
+            <div class="detail-row">
+              <div class="row-title">${escapeHtml(titleize(p0.risk_type))}</div>
+              <div class="row-meta"><span>${escapeHtml(p0.zone_id)}</span><span>${Math.round(Number(p0.confidence || 0) * 100)}%</span></div>
+            </div>
+          `;
+        }
+      }
+
+      function buildTimeline() {
+        const run = state.currentRun;
+        if (!run) return [];
+        const events = [];
+        (run.observations || []).forEach((observation) => events.push({
+          time: observation.timestamp,
+          title: "Scene observation",
+          text: observationText(observation),
+        }));
+        (run.risks || []).forEach((risk) => events.push({
+          time: risk.detected_at,
+          title: `${risk.severity} ${titleize(risk.risk_type)}`,
+          text: `${titleize(risk.status)} in ${risk.zone_id}`,
+        }));
+        (run.actions || []).forEach((action) => events.push({
+          time: action.created_at,
+          title: `${titleize(action.action_type)} for ${titleize(action.owner_role)}`,
+          text: action.payload?.message || action.payload?.reason || action.payload?.task || titleize(action.status),
+        }));
+        return events.sort((a, b) => new Date(b.time || 0) - new Date(a.time || 0));
+      }
+
+      function summarizeTool(tool) {
+        const output = tool.output || {};
+        if (output.error) return output.error;
+        if (output.action_id) return `Action ${compactId(output.action_id)} recorded.`;
+        if (output.task_id) return `Task ${compactId(output.task_id)} created.`;
+        if (output.hold_id) return `Hold ${compactId(output.hold_id)} created.`;
+        if (output.incident_id) return `Incident ${compactId(output.incident_id)} opened.`;
+        if (output.payload?.responder) return `${output.payload.responder} mock payload prepared.`;
+        if (output.snippet) return output.snippet;
+        return Object.keys(output).length ? pretty(output).slice(0, 160) : "Completed.";
+      }
+
+      function renderTabs() {
+        $("detailTabs").innerHTML = tabs.map((tab) => `
+          <button class="tab ${state.detailView === tab ? "active" : ""}" data-tab="${escapeHtml(tab)}">${escapeHtml(titleize(tab))}</button>
+        `).join("");
+        document.querySelectorAll("[data-tab]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.detailView = button.dataset.tab;
+            renderDetails();
+            renderTabs();
+          });
+        });
+      }
+
+      function renderDetails() {
+        const run = state.currentRun;
+        const body = $("detailBody");
+        if (!run) {
+          body.innerHTML = `<div class="empty">Operational detail appears here after a run starts.</div>`;
+          return;
+        }
+        if (state.detailView === "evidence") {
+          const evidence = run.evidence || [];
+          body.innerHTML = evidence.length ? `<div class="detail-grid">${evidence.slice().reverse().slice(0, 6).map((item) => `
+            <div class="detail-row">
+              <div class="row-title">${escapeHtml(item.description)}</div>
+              <div class="row-meta"><span>${escapeHtml(titleize(item.type))}</span><span>${escapeHtml(item.source)}</span></div>
+            </div>
+          `).join("")}</div>` : `<div class="empty">No evidence yet.</div>`;
+          return;
+        }
+        if (state.detailView === "timeline") {
+          const events = buildTimeline();
+          body.innerHTML = events.length ? `<div class="detail-grid">${events.slice(0, 6).map((event) => `
+            <div class="detail-row">
+              <div class="row-title">${escapeHtml(event.title)}</div>
+              <div class="row-meta"><span>${escapeHtml(timeLabel(event.time))}</span></div>
+              <p class="quiet" style="margin-top: 6px;">${escapeHtml(event.text)}</p>
+            </div>
+          `).join("")}</div>` : `<div class="empty">No timeline events yet.</div>`;
+          return;
+        }
+        if (state.detailView === "handover") {
+          const handover = run.handover;
+          if (!handover) {
+            body.innerHTML = `<div class="empty">Complete the run to generate handover.</div>`;
+            return;
+          }
+          const rows = [
+            ["Resolved", handover.resolved_risks],
+            ["Open", handover.open_risks],
+            ["Incidents", handover.emergency_incidents],
+            ["Holds", handover.quality_holds],
+            ["Tasks", handover.unresolved_tasks],
+            ["Recommendations", handover.recommendations],
+          ];
+          body.innerHTML = `<div class="detail-grid">${rows.map(([title, values]) => `
+            <div class="detail-row">
+              <div class="row-title">${escapeHtml(title)}</div>
+              <p class="quiet" style="margin-top: 6px;">${escapeHtml((values || []).join(", ") || "None")}</p>
+            </div>
+          `).join("")}</div>`;
+          return;
+        }
+        if (state.detailView === "tools") {
+          const tools = run.tool_calls || [];
+          body.innerHTML = tools.length ? `<div class="detail-grid">${tools.slice().reverse().slice(0, 6).map((tool) => `
+            <div class="detail-row">
+              <div class="row-top">
+                <div class="row-title">${escapeHtml(titleize(tool.tool_name))}</div>
+                <span class="status ${escapeHtml(tool.status)}">${escapeHtml(titleize(tool.status))}</span>
+              </div>
+              <p class="quiet" style="margin-top: 6px;">${escapeHtml(summarizeTool(tool))}</p>
+            </div>
+          `).join("")}</div>` : `<div class="empty">No tools executed yet.</div>`;
+          return;
+        }
+        body.innerHTML = `<pre>${escapeHtml(pretty(run))}</pre>`;
+      }
+
+      function renderAll() {
+        renderScenarioPicker();
+        renderRunState();
+        renderNarrative();
+        renderSensor();
+        renderMetrics();
+        renderPrimary();
+        renderRiskQueue();
+        renderActionQueue();
+        renderEmergency();
+        renderTabs();
+        renderDetails();
+      }
+
+      async function loadScenarios() {
+        setConnection("warn", "Loading");
+        state.scenarios = await api("/api/scenarios");
+        state.selectedScenarioId = state.scenarios[0]?.scenario_id || null;
+        setConnection("ok", "Connected");
+        renderAll();
+      }
+
+      async function startRun() {
+        const scenarioId = $("scenarioSelect").value || state.selectedScenarioId;
+        if (!scenarioId) return;
+        state.selectedScenarioId = scenarioId;
+        setConnection("warn", "Starting");
+        state.currentRun = await api("/api/runs", {
+          method: "POST",
+          body: JSON.stringify({ scenario_id: scenarioId }),
+        });
+        state.selectedRiskId = null;
+        setConnection("ok", "Connected");
+        renderAll();
+      }
+
+      async function stepRun() {
+        if (!state.currentRun) return;
+        setConnection("warn", "Processing");
+        state.currentRun = await api(`/api/runs/${state.currentRun.run_id}/step`, { method: "POST" });
+        setConnection("ok", "Connected");
+        renderAll();
+      }
+
+      async function completeRun() {
+        if (!state.currentRun) return;
+        setConnection("warn", "Completing");
+        state.currentRun = await api(`/api/runs/${state.currentRun.run_id}/complete`, { method: "POST" });
+        setConnection("ok", "Connected");
+        renderAll();
+      }
+
+      async function resetRuns() {
+        setConnection("warn", "Resetting");
+        await api("/api/reset", { method: "POST" });
+        state.currentRun = null;
+        state.selectedRiskId = null;
+        setConnection("ok", "Connected");
+        renderAll();
+      }
+
+      function handleError(error) {
+        console.error(error);
+        setConnection("danger", "Error");
+        alert(error.message || String(error));
+      }
+
+      $("scenarioSelect").addEventListener("change", (event) => {
+        state.selectedScenarioId = event.target.value;
+        state.currentRun = null;
+        state.selectedRiskId = null;
+        renderAll();
+      });
+      $("start").addEventListener("click", () => startRun().catch(handleError));
+      $("step").addEventListener("click", () => stepRun().catch(handleError));
+      $("complete").addEventListener("click", () => completeRun().catch(handleError));
+      $("reset").addEventListener("click", () => resetRuns().catch(handleError));
+
+      renderAll();
+      loadScenarios().catch(handleError);
+    </script>
+  </body>
+</html>

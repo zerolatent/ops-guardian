@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Line Guardian · Operations Cockpit</title>
+<style>
+  /* ---------- design tokens ---------- */
+  :root {
+    --bg: #070a0f;
+    --bg-2: #0b1118;
+    --panel: rgba(18, 26, 36, 0.66);
+    --panel-solid: #0f1620;
+    --line: rgba(255, 255, 255, 0.08);
+    --line-strong: rgba(255, 255, 255, 0.16);
+    --txt: #e8eef5;
+    --txt-dim: #8da2b5;
+    --txt-faint: #5c6e7e;
+    --accent: #34e2d6;        /* guardian / AI */
+    --accent-dim: rgba(52, 226, 214, 0.14);
+    --p0: #ff3b54;
+    --p1: #ff8a3d;
+    --p2: #ffd23d;
+    --p3: #4da3ff;
+    --ok: #2ee6a6;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, sans-serif;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; font-family: var(--sans); color: var(--txt);
+    background:
+      radial-gradient(1200px 700px at 80% -10%, rgba(52,226,214,0.07), transparent 60%),
+      radial-gradient(900px 600px at 0% 110%, rgba(77,163,255,0.06), transparent 55%),
+      linear-gradient(180deg, var(--bg-2), var(--bg));
+    background-attachment: fixed;
+    overflow: hidden;
+  }
+  body::before { /* faint grid */
+    content: ""; position: fixed; inset: 0; pointer-events: none; opacity: 0.35;
+    background-image: linear-gradient(var(--line) 1px, transparent 1px),
+                      linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 46px 46px; mask-image: radial-gradient(circle at 50% 40%, #000 30%, transparent 85%);
+  }
+  ::-webkit-scrollbar { width: 9px; height: 9px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+
+  .app { position: relative; height: 100vh; display: flex; flex-direction: column; }
+
+  /* ---------- header ---------- */
+  header {
+    display: flex; align-items: center; gap: 18px; padding: 14px 22px;
+    border-bottom: 1px solid var(--line); backdrop-filter: blur(8px);
+    background: linear-gradient(180deg, rgba(11,17,24,0.9), rgba(11,17,24,0.5));
+    z-index: 30;
+  }
+  .brand { display: flex; align-items: center; gap: 11px; }
+  .brand .mark {
+    width: 30px; height: 30px; display: grid; place-items: center; color: var(--accent);
+    border: 1px solid var(--accent); border-radius: 9px; font-size: 16px;
+    box-shadow: 0 0 18px var(--accent-dim); background: var(--accent-dim);
+  }
+  .brand h1 { font-size: 15px; letter-spacing: 2.5px; margin: 0; font-weight: 600; }
+  .brand h1 small { display:block; font-size: 9.5px; letter-spacing: 3px; color: var(--txt-faint); font-weight: 500; }
+
+  .zone-tag { font: 500 12px var(--mono); color: var(--txt-dim);
+    border: 1px solid var(--line); padding: 5px 11px; border-radius: 8px; }
+  .zone-tag b { color: var(--txt); }
+
+  .posture {
+    display: flex; align-items: center; gap: 9px; padding: 7px 14px; border-radius: 999px;
+    font: 600 12px var(--sans); letter-spacing: 1px; border: 1px solid var(--line-strong);
+    transition: all .4s ease;
+  }
+  .posture .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--ok);
+    box-shadow: 0 0 0 0 currentColor; animation: pulse 2.4s infinite; }
+  .posture.clear { color: var(--ok); }
+  .posture.active { color: var(--p2); border-color: rgba(255,210,61,0.4); background: rgba(255,210,61,0.06); }
+  .posture.p0 { color: var(--p0); border-color: rgba(255,59,84,0.5); background: rgba(255,59,84,0.1); }
+  @keyframes pulse { 0%{box-shadow:0 0 0 0 currentColor;} 70%{box-shadow:0 0 0 7px transparent;} 100%{box-shadow:0 0 0 0 transparent;} }
+
+  .spacer { flex: 1; }
+  .clock { font: 600 13px var(--mono); color: var(--txt-dim); letter-spacing: 1px; }
+  .clock b { color: var(--txt); }
+
+  /* ---------- controls ---------- */
+  .controls { display: flex; align-items: center; gap: 8px; }
+  select, button {
+    font-family: var(--sans); color: var(--txt); background: rgba(255,255,255,0.03);
+    border: 1px solid var(--line-strong); border-radius: 9px; padding: 9px 13px; font-size: 12.5px;
+    cursor: pointer; transition: all .15s ease;
+  }
+  select { min-width: 210px; }
+  button:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); background: var(--accent-dim); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary { background: var(--accent); color: #06231f; border-color: var(--accent); font-weight: 700; }
+  button.primary:hover:not(:disabled) { box-shadow: 0 0 18px var(--accent-dim); color:#06231f; }
+  button.ghost-danger:hover:not(:disabled){ border-color: var(--p0); color: var(--p0); background: rgba(255,59,84,0.08); }
+
+  /* ---------- emergency banner ---------- */
+  .emergency-bar {
+    display: none; align-items: center; gap: 16px; padding: 12px 22px;
+    background: linear-gradient(90deg, rgba(255,59,84,0.22), rgba(255,59,84,0.06));
+    border-bottom: 1px solid rgba(255,59,84,0.5); animation: emflash 1.6s infinite;
+  }
+  .emergency-bar.show { display: flex; }
+  @keyframes emflash { 0%,100%{ background-position: 0% } 50%{ background: linear-gradient(90deg, rgba(255,59,84,0.34), rgba(255,59,84,0.1)); } }
+  .emergency-bar .ico { font-size: 20px; }
+  .emergency-bar .txt { font-weight: 700; letter-spacing: 1px; color: #ffd9de; }
+  .emergency-bar .sub { font: 500 12px var(--mono); color: #ffb3bd; }
+
+  /* ---------- layout grid ---------- */
+  .grid {
+    flex: 1; display: grid; gap: 14px; padding: 14px;
+    grid-template-columns: minmax(300px, 1fr) minmax(440px, 1.5fr) minmax(300px, 1fr);
+    grid-template-rows: 1fr; min-height: 0;
+  }
+  .col { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    backdrop-filter: blur(10px); display: flex; flex-direction: column; min-height: 0;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  .panel > .head {
+    display: flex; align-items: center; gap: 9px; padding: 13px 16px; border-bottom: 1px solid var(--line);
+    font: 600 11px var(--sans); letter-spacing: 2px; color: var(--txt-dim); text-transform: uppercase;
+  }
+  .panel > .head .count { margin-left: auto; font: 600 11px var(--mono); color: var(--txt-faint);
+    background: rgba(255,255,255,0.04); padding: 2px 8px; border-radius: 20px; }
+  .panel > .body { padding: 12px; overflow-y: auto; flex: 1; min-height: 0; }
+  .panel .head .ic { color: var(--accent); }
+
+  .empty { color: var(--txt-faint); font-size: 12.5px; text-align: center; padding: 26px 12px; line-height: 1.6; }
+
+  /* ---------- risk cards ---------- */
+  .risk {
+    position: relative; border: 1px solid var(--line); border-left: 3px solid var(--p3);
+    border-radius: 11px; padding: 12px 13px; margin-bottom: 10px; cursor: pointer;
+    background: rgba(255,255,255,0.018); transition: all .18s ease; animation: rise .35s ease;
+  }
+  .risk:hover { border-color: var(--line-strong); background: rgba(255,255,255,0.04); transform: translateY(-1px); }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  .risk .top { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
+  .chip { font: 700 10px var(--mono); letter-spacing: 1px; padding: 3px 7px; border-radius: 6px; }
+  .risk .title { font-weight: 600; font-size: 13.5px; }
+  .risk .tte { margin-left: auto; font: 700 12px var(--mono); }
+  .risk .meta { display: flex; gap: 14px; font: 500 11px var(--mono); color: var(--txt-dim); margin-bottom: 9px; }
+  .risk .meta .k { color: var(--txt-faint); }
+  .scorebar { height: 4px; background: rgba(255,255,255,0.07); border-radius: 3px; overflow: hidden; margin-bottom: 8px; }
+  .scorebar > i { display: block; height: 100%; border-radius: 3px; transition: width .5s ease; }
+  .risk .rec { font-size: 11.5px; color: var(--txt-dim); display: flex; gap: 6px; align-items: center; }
+  .risk .rec .arrow { color: var(--accent); }
+  .status-pill { font: 600 9.5px var(--mono); letter-spacing: 1px; padding: 2px 7px; border-radius: 20px; text-transform: uppercase; }
+
+  /* ---------- scene ---------- */
+  .scene { position: relative; aspect-ratio: 16/9; background: #05080c; border-radius: 11px; overflow: hidden;
+    border: 1px solid var(--line); margin-bottom: 12px; }
+  .scene video { width: 100%; height: 100%; object-fit: cover; display: block; filter: saturate(1.05) contrast(1.03); }
+  .scene .noscene { position: absolute; inset: 0; display: grid; place-items: center; color: var(--txt-faint);
+    background-image: linear-gradient(var(--line) 1px, transparent 1px), linear-gradient(90deg, var(--line) 1px, transparent 1px);
+    background-size: 34px 34px; }
+  .scene .scan { position: absolute; left:0; right:0; height: 28%; pointer-events:none;
+    background: linear-gradient(180deg, rgba(52,226,214,0.12), transparent); animation: scan 4.5s linear infinite; }
+  @keyframes scan { from { top: -30%; } to { top: 110%; } }
+  .cam-tag { position: absolute; top: 10px; left: 10px; font: 600 10px var(--mono); letter-spacing: 1px;
+    color: var(--txt); background: rgba(0,0,0,0.5); padding: 4px 9px; border-radius: 6px; display:flex; gap:7px; align-items:center; }
+  .rec-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--p0); animation: pulse 1.6s infinite; }
+  .scene .overlay { position: absolute; left: 10px; right: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .tag { font: 600 10px var(--mono); padding: 4px 8px; border-radius: 6px; background: rgba(0,0,0,0.55);
+    border: 1px solid var(--line-strong); color: var(--txt-dim); backdrop-filter: blur(4px); }
+  .tag.hz { color: #ffd9de; border-color: rgba(255,59,84,0.5); }
+  .tag.posture { color: #06231f; background: var(--accent); border-color: var(--accent); }
+
+  .assessment { padding: 11px 13px; border: 1px solid var(--line); border-radius: 11px; background: rgba(255,255,255,0.02); margin-bottom: 12px; }
+  .assessment .lbl { font: 600 10px var(--sans); letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin-bottom: 6px; }
+  .assessment .txt { font-size: 13.5px; line-height: 1.5; }
+  .telemetry { display: flex; gap: 18px; margin-top: 9px; font: 600 11px var(--mono); color: var(--txt-dim); }
+  .telemetry .k { color: var(--txt-faint); margin-right: 5px; }
+
+  /* segmented toggle + perception/VLM inspector */
+  .seg { font: 600 10.5px var(--mono); letter-spacing: .5px; padding: 5px 10px; border-radius: 7px;
+    background: rgba(255,255,255,0.03); border: 1px solid var(--line); color: var(--txt-dim); cursor: pointer; }
+  .seg.active { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  .seg:hover { color: var(--txt); }
+  .scene img.anno { width: 100%; height: 100%; object-fit: cover; display: none; }
+  .det { display: inline-flex; gap: 5px; align-items: center; font: 600 10px var(--mono); padding: 4px 8px; border-radius: 6px;
+    background: rgba(0,0,0,0.6); border: 1px solid var(--accent); color: var(--accent); backdrop-filter: blur(4px); }
+  .pv { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .pv .box { border: 1px solid var(--line); border-radius: 11px; padding: 11px 13px; background: rgba(255,255,255,0.015); }
+  .pv .box h5 { margin: 0 0 7px; font: 600 9.5px var(--sans); letter-spacing: 1.5px; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+  .pv .box.in h5 { color: var(--p3); } .pv .box.out h5 { color: var(--accent); }
+  .pv .box .ln { font: 500 11.5px var(--mono); color: var(--txt-dim); line-height: 1.65; }
+  .pv .box .ln b { color: var(--txt); font-weight: 600; }
+  table.det-tbl { width: 100%; border-collapse: collapse; font: 500 11px var(--mono); }
+  table.det-tbl td, table.det-tbl th { text-align: left; padding: 5px 6px; border-bottom: 1px solid var(--line); }
+  table.det-tbl th { color: var(--txt-faint); font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; }
+  table.det-tbl td { color: var(--txt-dim); }
+  table.det-tbl td b { color: var(--accent); }
+  .mode-badge { font: 700 9.5px var(--mono); letter-spacing: 1px; padding: 3px 8px; border-radius: 20px;
+    border: 1px solid var(--line-strong); color: var(--txt-dim); text-transform: uppercase; }
+
+  /* ---------- timeline ---------- */
+  .tl-item { display: flex; gap: 11px; padding: 7px 0; animation: rise .35s ease; }
+  .tl-item .t { font: 600 10.5px var(--mono); color: var(--txt-faint); min-width: 62px; padding-top: 1px; }
+  .tl-item .marker { position: relative; width: 12px; display: flex; justify-content: center; }
+  .tl-item .marker::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); margin-top: 3px; z-index: 1; }
+  .tl-item .marker::after { content: ""; position: absolute; top: 12px; bottom: -10px; width: 1px; background: var(--line-strong); }
+  .tl-item:last-child .marker::after { display: none; }
+  .tl-item .lbl { font-size: 12.5px; }
+  .tl-item .lbl .st { font: 600 9.5px var(--mono); margin-left: 7px; }
+
+  /* ---------- tool trace / actions ---------- */
+  .row { display: flex; align-items: center; gap: 10px; padding: 9px 4px; border-bottom: 1px solid var(--line); animation: rise .3s ease; }
+  .row:last-child { border-bottom: none; }
+  .row .ic { width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; font-size: 12px;
+    background: rgba(255,255,255,0.04); border: 1px solid var(--line); flex-shrink: 0; }
+  .row .main { flex: 1; min-width: 0; }
+  .row .main .nm { font-size: 12.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .main .sub { font: 500 10.5px var(--mono); color: var(--txt-faint); }
+  .row .st { font: 700 9.5px var(--mono); letter-spacing: .5px; padding: 3px 7px; border-radius: 6px; text-transform: uppercase; flex-shrink: 0; }
+
+  /* ---------- scorecard ---------- */
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat { border: 1px solid var(--line); border-radius: 11px; padding: 12px; text-align: center; background: rgba(255,255,255,0.015); }
+  .stat .v { font: 700 24px var(--mono); }
+  .stat .l { font: 600 9.5px var(--sans); letter-spacing: 1.5px; color: var(--txt-faint); text-transform: uppercase; margin-top: 4px; }
+
+  /* ---------- drawer ---------- */
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 420px; max-width: 92vw; z-index: 60;
+    background: var(--panel-solid); border-left: 1px solid var(--line-strong); transform: translateX(105%);
+    transition: transform .32s cubic-bezier(.22,1,.36,1); display: flex; flex-direction: column;
+    box-shadow: -30px 0 60px rgba(0,0,0,0.5); }
+  .drawer.open { transform: none; }
+  .drawer .dhead { display: flex; align-items: flex-start; gap: 10px; padding: 18px; border-bottom: 1px solid var(--line); }
+  .drawer .dhead .x { margin-left: auto; cursor: pointer; color: var(--txt-faint); font-size: 20px; line-height: 1; }
+  .drawer .dbody { padding: 18px; overflow-y: auto; }
+  .sect { margin-bottom: 20px; }
+  .sect h4 { font: 600 10px var(--sans); letter-spacing: 2px; color: var(--accent); text-transform: uppercase; margin: 0 0 10px; }
+  .kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 14px; font: 500 12px var(--mono); }
+  .kv .k { color: var(--txt-faint); }
+  .ev { border: 1px solid var(--line); border-radius: 9px; padding: 10px; margin-bottom: 8px; }
+  .ev .et { font: 600 9.5px var(--mono); color: var(--accent); letter-spacing: 1px; text-transform: uppercase; }
+  .ev .ed { font-size: 12.5px; margin: 4px 0; line-height: 1.4; }
+  .ev .eu { font: 500 10px var(--mono); color: var(--txt-faint); word-break: break-all; }
+  ul.clean { list-style: none; padding: 0; margin: 0; }
+  ul.clean li { font-size: 12.5px; padding: 6px 0 6px 18px; position: relative; line-height: 1.4; border-bottom: 1px solid var(--line); }
+  ul.clean li:last-child { border: none; }
+  ul.clean li::before { content: "▸"; color: var(--accent); position: absolute; left: 0; }
+
+  /* ---------- modal ---------- */
+  .scrim { position: fixed; inset: 0; background: rgba(3,6,10,0.7); backdrop-filter: blur(4px); z-index: 70;
+    display: none; align-items: center; justify-content: center; padding: 24px; }
+  .scrim.open { display: flex; }
+  .modal { width: 720px; max-width: 96vw; max-height: 88vh; overflow: auto; background: var(--panel-solid);
+    border: 1px solid var(--line-strong); border-radius: 16px; box-shadow: 0 30px 80px rgba(0,0,0,0.6); }
+  .modal.em { border-color: rgba(255,59,84,0.55); box-shadow: 0 0 60px rgba(255,59,84,0.18); }
+  .modal .mhead { display: flex; align-items: center; gap: 12px; padding: 20px 24px; border-bottom: 1px solid var(--line); }
+  .modal .mhead h3 { margin: 0; font-size: 16px; letter-spacing: 1px; }
+  .modal .mhead .x { margin-left: auto; cursor: pointer; color: var(--txt-faint); font-size: 22px; }
+  .modal .mbody { padding: 24px; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 24px; }
+  .ho-sect { margin-bottom: 18px; }
+  .ho-sect h4 { font: 600 11px var(--sans); letter-spacing: 1.5px; text-transform: uppercase; color: var(--txt-dim); margin: 0 0 8px; border-left: 2px solid var(--accent); padding-left: 9px; }
+
+  .thinking { display: none; align-items: center; gap: 8px; font: 600 11px var(--mono); color: var(--accent); }
+  .thinking.show { display: flex; }
+  .thinking .d { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: blink 1s infinite; }
+  .thinking .d:nth-child(2){ animation-delay: .2s; } .thinking .d:nth-child(3){ animation-delay: .4s; }
+  @keyframes blink { 0%,100%{opacity:.25;} 50%{opacity:1;} }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="brand">
+      <div class="mark">◇</div>
+      <h1>LINE GUARDIAN<small>PREVENTIVE SHIFT SUPERVISOR</small></h1>
+    </div>
+    <div class="zone-tag" id="zoneTag">ZONE · <b>—</b></div>
+    <div class="posture clear" id="posture"><span class="dot"></span><span id="postureTxt">STANDBY</span></div>
+    <div class="thinking" id="thinking"><span class="d"></span><span class="d"></span><span class="d"></span> reasoning</div>
+    <div class="spacer"></div>
+    <div class="clock"><span id="shiftClock">--:--:--</span></div>
+    <div class="controls">
+      <select id="modeSel" title="Run mode">
+        <option value="demo">◷ Demo · mock</option>
+        <option value="hybrid">◉ Hybrid · real YOLO + VLM</option>
+        <option value="live">⬡ Full live · all real</option>
+      </select>
+      <select id="scenarioSel"></select>
+      <button class="primary" id="startBtn">▶ Start Shift</button>
+      <button id="stepBtn" disabled>Step ›</button>
+      <button id="autoBtn" disabled>⏩ Auto</button>
+      <button id="handoverBtn" disabled>Handover</button>
+      <button class="ghost-danger" id="resetBtn">Reset</button>
+    </div>
+  </header>
+
+  <div class="emergency-bar" id="emBar">
+    <span class="ico">🚨</span>
+    <div>
+      <div class="txt" id="emTxt">P0 EMERGENCY</div>
+      <div class="sub" id="emSub"></div>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost-danger" id="emOpenBtn">Open Emergency Console →</button>
+  </div>
+
+  <div class="grid">
+    <!-- LEFT: risk board -->
+    <div class="col">
+      <div class="panel" style="flex:1">
+        <div class="head"><span class="ic">◈</span> Live Risk Board <span class="count" id="riskCount">0</span></div>
+        <div class="body" id="riskBoard">
+          <div class="empty">No active risks.<br>Start a shift to begin monitoring.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTER: scene + timeline -->
+    <div class="col">
+      <div class="panel">
+        <div class="head"><span class="ic">▣</span> Zone View · <span id="sceneCam" style="color:var(--txt-dim)">—</span>
+          <span style="margin-left:auto; display:flex; gap:6px">
+            <button class="seg active" id="viewRaw">▶ Raw</button>
+            <button class="seg" id="viewPerc">◉ Perception</button>
+            <button class="seg" id="inspectBtn" title="Inspect this step's pipeline I/O">🔬 Inspect</button>
+          </span>
+        </div>
+        <div class="body" style="overflow:visible">
+          <div class="scene">
+            <video id="sceneVid" muted loop playsinline></video>
+            <img id="annoImg" class="anno" alt="YOLO perception view" />
+            <div class="noscene" id="noScene">◹ NO LIVE FEED</div>
+            <div class="scan"></div>
+            <div class="cam-tag"><span class="rec-dot"></span><span id="camId">CAM</span> · LIVE</div>
+            <div class="overlay" id="sceneOverlay"></div>
+          </div>
+          <div class="assessment">
+            <div class="lbl">Current Assessment</div>
+            <div class="txt" id="assessTxt">Awaiting first observation…</div>
+            <div class="telemetry">
+              <span><span class="k">step</span><b id="telStep">—</b></span>
+              <span><span class="k">motionless</span><b id="telMotion">0.0s</b></span>
+              <span><span class="k">status</span><b id="telStatus">idle</b></span>
+            </div>
+          </div>
+          <div class="pv" id="pvStrip" style="display:none">
+            <div class="box in"><h5>▤ Passed to VLM</h5><div class="ln" id="pvIn"></div></div>
+            <div class="box out"><h5>◈ VLM Read</h5><div class="ln" id="pvOut"></div></div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="head"><span class="ic">◷</span> Prediction Timeline</div>
+        <div class="body" id="timeline"><div class="empty">Events will appear as the agent observes, predicts, and acts.</div></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: interventions + tool trace + scorecard -->
+    <div class="col">
+      <div class="panel" style="flex:1.1">
+        <div class="head"><span class="ic">⚡</span> Interventions <span class="count" id="actCount">0</span></div>
+        <div class="body" id="actions"><div class="empty">No interventions yet.</div></div>
+      </div>
+      <div class="panel" style="flex:1">
+        <div class="head"><span class="ic">⌘</span> Agent Tool Trace <span class="count" id="toolCount">0</span></div>
+        <div class="body" id="tools"><div class="empty">Agent tool calls will stream here.</div></div>
+      </div>
+      <div class="panel">
+        <div class="head"><span class="ic">▦</span> Prevention Scorecard</div>
+        <div class="body">
+          <div class="stats">
+            <div class="stat"><div class="v" id="scPred" style="color:var(--txt)">0</div><div class="l">Risks Predicted</div></div>
+            <div class="stat"><div class="v" id="scVer" style="color:var(--ok)">0</div><div class="l">Verified Reduced</div></div>
+            <div class="stat"><div class="v" id="scOpen" style="color:var(--p2)">0</div><div class="l">Open Items</div></div>
+            <div class="stat"><div class="v" id="scEm" style="color:var(--p0)">0</div><div class="l">Emergencies</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- evidence drawer -->
+<div class="drawer" id="drawer">
+  <div class="dhead">
+    <div>
+      <div id="drChip"></div>
+      <div id="drTitle" style="font-size:16px;font-weight:600;margin-top:8px"></div>
+    </div>
+    <div class="x" onclick="closeDrawer()">✕</div>
+  </div>
+  <div class="dbody" id="drBody"></div>
+</div>
+
+<!-- modal (emergency / handover) -->
+<div class="scrim" id="scrim" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal">
+    <div class="mhead"><h3 id="moTitle"></h3><div class="x" onclick="closeModal()">✕</div></div>
+    <div class="mbody" id="moBody"></div>
+  </div>
+</div>
+
+<script>
+const API = "";
+const $ = (id) => document.getElementById(id);
+let state = { scenarios: [], run: null, auto: false, autoTimer: null, sceneView: "raw" };
+
+const SEV = { P0: { c: "var(--p0)", bg: "rgba(255,59,84,0.14)" }, P1: { c: "var(--p1)", bg: "rgba(255,138,61,0.14)" },
+              P2: { c: "var(--p2)", bg: "rgba(255,210,61,0.14)" }, P3: { c: "var(--p3)", bg: "rgba(77,163,255,0.14)" } };
+const sevColor = (s) => (SEV[s] || SEV.P3).c;
+const STATUS_C = { completed: "var(--ok)", sent: "var(--p3)", created: "var(--p3)", acknowledged: "var(--accent)",
+                   blocked: "var(--p0)", failed: "var(--txt-faint)", allowed: "var(--p3)", planned: "var(--txt-faint)" };
+const human = (s) => (s || "").replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+const fmtTime = (iso) => { try { return new Date(iso).toLocaleTimeString("en-US", { hour12: false }); } catch { return "--:--:--"; } };
+const tte = (s) => s == null ? "" : (s < 90 ? "T‑" + s + "s" : "~" + Math.round(s / 60) + " min");
+
+async function api(path, method = "GET", body) {
+  const opt = { method, headers: { "Content-Type": "application/json" } };
+  if (body) opt.body = JSON.stringify(body);
+  const r = await fetch(API + path, opt);
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+/* ---------- bootstrap ---------- */
+async function init() {
+  setInterval(() => { $("shiftClock").textContent = new Date().toLocaleTimeString("en-US", { hour12: false }); }, 1000);
+  try {
+    state.scenarios = await api("/api/scenarios");
+    $("scenarioSel").innerHTML = state.scenarios.map((s) => `<option value="${s.scenario_id}">${s.title}</option>`).join("");
+  } catch (e) { $("scenarioSel").innerHTML = `<option>API unavailable</option>`; }
+}
+
+/* ---------- controls ---------- */
+$("startBtn").onclick = async () => {
+  stopAuto();
+  const sid = $("scenarioSel").value;
+  busy(true);
+  try { state.run = await api("/api/runs", "POST", { scenario_id: sid, mode: $("modeSel").value }); render(); }
+  finally { busy(false); }
+};
+$("stepBtn").onclick = () => doStep();
+$("autoBtn").onclick = () => { state.auto ? stopAuto() : startAuto(); };
+$("resetBtn").onclick = async () => { stopAuto(); try { await api("/api/reset", "POST"); } catch {} state.run = null; render(); };
+$("handoverBtn").onclick = () => showHandover();
+$("emOpenBtn").onclick = () => showEmergency();
+$("viewRaw").onclick = () => setView("raw");
+$("viewPerc").onclick = () => setView("perception");
+$("inspectBtn").onclick = () => { const r = state.run; if (r && r.traces && r.traces.length) openStepTrace(r.traces.length - 1); };
+function setView(v) {
+  state.sceneView = v;
+  $("viewRaw").classList.toggle("active", v === "raw");
+  $("viewPerc").classList.toggle("active", v === "perception");
+  if (state.run) renderScene(state.run);
+}
+
+async function doStep() {
+  if (!state.run || state.run.status === "completed") { stopAuto(); return; }
+  busy(true);
+  try { state.run = await api(`/api/runs/${state.run.run_id}/step`, "POST"); render(); }
+  catch (e) { stopAuto(); }
+  finally { busy(false); }
+  if (state.run && state.run.status === "completed") { stopAuto(); setTimeout(showHandover, 600); }
+}
+function startAuto() { state.auto = true; $("autoBtn").textContent = "⏸ Pause"; $("autoBtn").classList.add("primary");
+  doStep(); state.autoTimer = setInterval(doStep, 2600); }
+function stopAuto() { state.auto = false; clearInterval(state.autoTimer); $("autoBtn").textContent = "⏩ Auto"; $("autoBtn").classList.remove("primary"); }
+function busy(on) { $("thinking").classList.toggle("show", on); }
+
+/* ---------- render ---------- */
+function render() {
+  const r = state.run;
+  const has = !!r;
+  $("stepBtn").disabled = !has || r.status === "completed";
+  $("autoBtn").disabled = !has || r.status === "completed";
+  $("handoverBtn").disabled = !has;
+  $("modeSel").disabled = has;
+  if (!has) { renderEmpty(); return; }
+
+  const sc = r.scenario;
+  $("zoneTag").innerHTML = `ZONE · <b>${human(sc.zone_id)}</b>`;
+  $("sceneCam").textContent = (sc.camera_ids || [])[0] || "—";
+  $("camId").textContent = (sc.camera_ids || [])[0] || "CAM";
+  $("telStep").textContent = `${r.step_index}/${sc.max_steps}`;
+  $("telMotion").textContent = (r.perception_motionless_seconds || 0).toFixed(1) + "s";
+  $("telStatus").textContent = r.status;
+
+  renderPosture(r);
+  renderScene(r);
+  renderRisks(r);
+  renderTimeline(r);
+  renderActions(r);
+  renderTools(r);
+  renderScorecard(r);
+  renderEmergency(r);
+}
+
+function renderEmpty() {
+  $("posture").className = "posture clear"; $("postureTxt").textContent = "STANDBY";
+  $("riskBoard").innerHTML = `<div class="empty">No active risks.<br>Start a shift to begin monitoring.</div>`;
+  $("timeline").innerHTML = `<div class="empty">Events will appear as the agent observes, predicts, and acts.</div>`;
+  $("actions").innerHTML = `<div class="empty">No interventions yet.</div>`;
+  $("tools").innerHTML = `<div class="empty">Agent tool calls will stream here.</div>`;
+  ["riskCount","actCount","toolCount"].forEach((id)=>$(id).textContent="0");
+  ["scPred","scVer","scOpen","scEm"].forEach((id)=>$(id).textContent="0");
+  $("sceneOverlay").innerHTML=""; $("assessTxt").textContent="Awaiting first observation…";
+  $("noScene").style.display="grid"; $("noScene").textContent="◹ NO LIVE FEED"; $("sceneVid").style.display="none"; $("annoImg").style.display="none";
+  $("pvStrip").style.display="none"; $("modeSel").disabled=false;
+  state.sceneView="raw"; $("viewRaw").classList.add("active"); $("viewPerc").classList.remove("active");
+  $("emBar").classList.remove("show"); $("telStep").textContent="—"; $("telMotion").textContent="0.0s"; $("telStatus").textContent="idle";
+}
+
+function activeRisks(r) { return r.risks.filter((x) => ["active","predicted","unresolved","escalated"].includes(x.status)); }
+
+function renderPosture(r) {
+  const el = $("posture"), txt = $("postureTxt");
+  const openInc = r.incidents.some((i) => !["handed_off","closed"].includes(i.status));
+  const act = activeRisks(r);
+  if (openInc) { el.className = "posture p0"; txt.textContent = "P0 EMERGENCY ACTIVE"; }
+  else if (act.length) {
+    const top = [...act].sort((a,b)=>(b.risk_score||0)-(a.risk_score||0))[0];
+    el.className = "posture active"; el.style.color = sevColor(top.severity);
+    txt.textContent = `${act.length} ACTIVE RISK${act.length>1?"S":""}`;
+  } else { el.className = "posture clear"; el.style.color = ""; txt.textContent = r.status === "completed" ? "SHIFT COMPLETE" : "ALL CLEAR"; }
+}
+
+function latestTrace(r) { return (r.traces && r.traces.length) ? r.traces[r.traces.length - 1] : null; }
+
+function renderScene(r) {
+  const obs = r.observations[r.observations.length - 1];
+  const trace = latestTrace(r);
+  const sc = r.scenario;
+  const vid = $("sceneVid"), img = $("annoImg"), ov = $("sceneOverlay");
+  const perceptionView = state.sceneView === "perception";
+
+  // keep the raw clip element wired up regardless of current view
+  const base = (sc.clip_path || "").split("/").pop();
+  if (base && vid.dataset.src !== base) {
+    vid.dataset.src = base; vid.src = "/media/videos/" + encodeURIComponent(base);
+    vid.onloadeddata = () => { vid.dataset.ok = "1"; if (state.sceneView === "raw") { $("noScene").style.display = "none"; vid.style.display = "block"; vid.play().catch(()=>{}); } };
+    vid.onerror = () => { vid.dataset.ok = "0"; if (state.sceneView === "raw") { $("noScene").style.display = "grid"; vid.style.display = "none"; } };
+  }
+
+  if (perceptionView) {
+    vid.style.display = "none";
+    const anno = trace && trace.annotated_frame_b64;
+    if (anno) { img.src = "data:image/jpeg;base64," + anno; img.style.display = "block"; $("noScene").style.display = "none"; }
+    else { img.style.display = "none"; $("noScene").style.display = "grid"; $("noScene").textContent = "◹ PERCEPTION RUNS IN HYBRID / FULL-LIVE MODE"; }
+    const chips = [];
+    (trace?.detections || []).forEach((d) => chips.push(`<span class="det">▢ ${d.cls} ${Math.round(d.conf*100)}%</span>`));
+    const pose = trace?.pose || {};
+    if (pose.state) chips.push(`<span class="det" style="color:${pose.state==='prone'?'var(--p0)':'var(--ok)'};border-color:currentColor">⊙ ${pose.state}${pose.torso_angle_deg!=null?` ${pose.torso_angle_deg}°`:""}</span>`);
+    if (pose.motionless_seconds_cumulative != null) chips.push(`<span class="det">⏱ motionless ${pose.motionless_seconds_cumulative}s / ${pose.p0_motionless_threshold_seconds}s</span>`);
+    ov.innerHTML = chips.join("");
+  } else {
+    img.style.display = "none"; $("noScene").textContent = "◹ NO LIVE FEED";
+    if (vid.dataset.ok === "0" || !base) { $("noScene").style.display = "grid"; vid.style.display = "none"; }
+    else { vid.style.display = "block"; $("noScene").style.display = "none"; vid.play().catch(()=>{}); }
+    const tags = [];
+    if (obs) {
+      (obs.posture || []).forEach((p) => tags.push(`<span class="tag posture">⊙ ${p}</span>`));
+      (obs.visible_entities || []).slice(0,4).forEach((e) => tags.push(`<span class="tag">${e}</span>`));
+      (obs.hazards || []).forEach((h) => tags.push(`<span class="tag hz">⚠ ${h}</span>`));
+    }
+    ov.innerHTML = tags.join("");
+  }
+  if (obs) $("assessTxt").innerHTML = buildAssessment(r, obs);
+  renderPV(r, trace, obs);
+}
+
+function renderPV(r, trace, obs) {
+  const strip = $("pvStrip");
+  if (!trace) { strip.style.display = "none"; return; }
+  strip.style.display = "grid";
+  const vi = trace.vlm_input || {}, facts = vi.perception_facts || {}, pose = facts.pose || {};
+  const inLines = [`<b>${vi.frames_attached || 0}</b> frame(s) + structured facts`];
+  if (facts.available) {
+    inLines.push(`detections: <b>${Object.entries(facts.detections || {}).map(([k,v]) => k+"×"+v).join(", ") || "none"}</b>`);
+    inLines.push(`pose: <b>${pose.state || "—"}</b>${pose.torso_angle_deg!=null ? ` (${pose.torso_angle_deg}°)` : ""}`);
+    inLines.push(`motionless: <b>${pose.motionless_seconds_cumulative ?? pose.motionless_seconds_window ?? 0}s</b> / ${pose.p0_motionless_threshold_seconds ?? "—"}s`);
+  } else { inLines.push(`perception: <b>off (demo mode)</b>`); }
+  inLines.push(`context: ${(vi.relevant_context_keys || []).join(", ") || "—"}`);
+  $("pvIn").innerHTML = inLines.join("<br>");
+
+  const o = trace.vlm_observation || obs || {};
+  const outLines = [`entities: <b>${(o.visible_entities || []).join(", ") || "—"}</b>`];
+  if ((o.posture || []).length) outLines.push(`posture: <b>${o.posture.join(", ")}</b>`);
+  if ((o.hazards || []).length) outLines.push(`hazards: <b>${o.hazards.join(", ")}</b>`);
+  if (trace.agent_summary) outLines.push(`<span style="color:var(--txt-faint)">“${trace.agent_summary}”</span>`);
+  $("pvOut").innerHTML = outLines.join("<br>");
+}
+
+function escapeJson(o) { return JSON.stringify(o, null, 2).replace(/</g, "&lt;"); }
+
+function openStepTrace(idx) {
+  const r = state.run, t = r.traces[idx];
+  if (!t) return;
+  const facts = t.perception || {}, pose = t.pose || {}, dets = t.detections || [];
+  const vi = t.vlm_input || {}, o = t.vlm_observation || {};
+  $("drChip").innerHTML = `<span class="chip" style="color:var(--accent);background:var(--accent-dim)">STEP ${t.step_index} · ${(t.mode||"").toUpperCase()}</span>`;
+  $("drTitle").textContent = "Pipeline Trace";
+  $("drBody").innerHTML = `
+    <div class="sect"><h4>Perception · YOLO</h4>
+      <div class="kv">
+        <span class="k">camera</span><span>${t.camera_id}</span>
+        <span class="k">window</span><span>${t.window?.start}-${t.window?.end}s</span>
+        <span class="k">person / vehicle</span><span>${facts.person_count ?? 0} / ${facts.vehicle_count ?? 0}</span>
+        <span class="k">pose</span><span style="color:${pose.state==='prone'?'var(--p0)':'var(--ok)'}">${pose.state || "—"}${pose.torso_angle_deg!=null?` · ${pose.torso_angle_deg}°`:""}</span>
+        <span class="k">motionless</span><span>${pose.motionless_seconds_cumulative ?? pose.motionless_seconds_window ?? 0}s / ${pose.p0_motionless_threshold_seconds ?? "—"}s${pose.p0_threshold_met?" · MET":""}</span>
+      </div></div>
+    ${t.annotated_frame_b64 ? `<div class="sect"><h4>Annotated Frame</h4><img src="data:image/jpeg;base64,${t.annotated_frame_b64}" style="width:100%;border-radius:9px;border:1px solid var(--line)"/></div>` : ""}
+    ${dets.length ? `<div class="sect"><h4>Detections</h4><table class="det-tbl"><tr><th>class</th><th>conf</th><th>bbox</th></tr>${dets.map(d=>`<tr><td><b>${d.cls}</b></td><td>${Math.round(d.conf*100)}%</td><td>${(d.bbox||[]).map(x=>Math.round(x)).join(", ")}</td></tr>`).join("")}</table></div>` : ""}
+    <div class="sect"><h4>Passed to VLM</h4>
+      <pre style="font:500 11px var(--mono);color:var(--txt-dim);background:rgba(0,0,0,0.3);padding:12px;border-radius:9px;overflow:auto;border:1px solid var(--line)">${escapeJson(vi)}</pre></div>
+    <div class="sect"><h4>VLM Returned</h4>
+      <div class="kv">
+        <span class="k">entities</span><span>${(o.visible_entities||[]).join(", ") || "—"}</span>
+        <span class="k">movement</span><span>${(o.movement||[]).join(", ") || "—"}</span>
+        <span class="k">posture</span><span>${(o.posture||[]).join(", ") || "—"}</span>
+        <span class="k">hazards</span><span>${(o.hazards||[]).join(", ") || "—"}</span>
+        <span class="k">workflow</span><span>${o.workflow_step || "—"}</span>
+        <span class="k">uncertainty</span><span>${o.uncertainty || "—"}</span>
+      </div></div>
+    ${t.agent_summary ? `<div class="sect"><h4>Agent Summary</h4><div style="font-size:13px;line-height:1.5">${t.agent_summary}</div></div>` : ""}`;
+  $("drawer").classList.add("open");
+}
+
+function buildAssessment(r, obs) {
+  const act = activeRisks(r);
+  if (act.length) {
+    const top = [...act].sort((a,b)=>(b.risk_score||0)-(a.risk_score||0))[0];
+    const t = top.time_to_event_seconds != null ? ` in ~${top.time_to_event_seconds}s` : "";
+    const rec = (top.recommended_actions || [])[0];
+    return `<b style="color:${sevColor(top.severity)}">${top.severity}</b> · ${human(top.risk_type)} at <b>${human(top.zone_id)}</b>${t}.` +
+           (rec ? ` <span style="color:var(--txt-dim)">Recommended: ${rec}.</span>` : "");
+  }
+  if (obs && (obs.hazards||[]).length) return `Observing: ${obs.hazards.join(", ")}.`;
+  return r.status === "completed" ? "Zone clear. Shift handover ready." : "Zone nominal. No active risks.";
+}
+
+function renderRisks(r) {
+  const board = $("riskBoard");
+  const risks = [...r.risks].sort((a,b)=>(b.risk_score||0)-(a.risk_score||0));
+  $("riskCount").textContent = activeRisks(r).length;
+  if (!risks.length) { board.innerHTML = `<div class="empty">No risks detected yet.</div>`; return; }
+  board.innerHTML = risks.map((rk, i) => {
+    const c = sevColor(rk.severity);
+    const pct = Math.round((rk.risk_score || 0) * 100);
+    const conf = Math.round((rk.confidence || 0) * 100);
+    return `<div class="risk" style="border-left-color:${c}" onclick="openRisk('${rk.risk_id}')">
+      <div class="top">
+        <span class="chip" style="color:${c};background:${(SEV[rk.severity]||SEV.P3).bg}">${rk.severity}</span>
+        <span class="title">${human(rk.risk_type)}</span>
+        <span class="tte" style="color:${c}">${tte(rk.time_to_event_seconds)}</span>
+      </div>
+      <div class="meta">
+        <span><span class="k">zone</span> ${human(rk.zone_id)}</span>
+        <span><span class="k">conf</span> ${conf}%</span>
+        <span><span class="k">score</span> ${(rk.risk_score||0).toFixed(2)}</span>
+      </div>
+      <div class="scorebar"><i style="width:${pct}%;background:${c}"></i></div>
+      <div class="rec"><span class="status-pill" style="color:${c};background:${(SEV[rk.severity]||SEV.P3).bg}">${rk.status}</span>
+        <span class="arrow">›</span> ${(rk.recommended_actions||[])[0] || "Monitoring"}</div>
+    </div>`;
+  }).join("");
+}
+
+const TOOL_LABEL = {
+  retrieve_sop: ["SOP retrieved", "📄"], retrieve_emergency_action_plan: ["Emergency plan retrieved","📄"],
+  retrieve_security_policy: ["Security policy retrieved","📄"], retrieve_site_map: ["Site map retrieved","🗺"],
+  query_wms: ["WMS queried","▤"], query_mes: ["MES queried","▤"], query_cmms: ["CMMS queried","▤"], query_access_control: ["Access log queried","▤"],
+  get_nearest_emergency_entry: ["Nearest entry located","⌖"], get_nearest_aed: ["Nearest AED located","✚"],
+  activate_warning_beacon: ["Warning beacon activated","🔆"], send_radio_alert: ["Radio alert sent","📻"],
+  notify_shift_lead: ["Shift lead notified","🔔"], notify_safety_officer: ["Safety officer notified","🔔"],
+  notify_quality_lead: ["Quality lead notified","🔔"], notify_security: ["Security notified","🔔"],
+  create_preventive_task: ["Preventive task created","✎"], pause_work_release: ["Work release paused","⏸"],
+  create_quality_hold: ["Quality hold created","⛔"], request_safe_stop: ["Safe-stop requested","🛑"],
+  schedule_recheck: ["Recheck scheduled","↻"], call_ems: ["Mock EMS escalation","🚑"], call_fire: ["Mock fire escalation","🔥"],
+  call_police: ["Mock police escalation","🚓"], notify_onsite_first_responder: ["First responder alerted","🚑"],
+  open_emergency_incident_card: ["Emergency incident opened","🚨"], stream_incident_to_command_center: ["Streaming to command center","📡"],
+  start_employee_accountability_check: ["Accountability check","👥"], verify_risk_reduced: ["Risk re-verified","✓"],
+  verify_task_completed: ["Task verified","✓"], generate_live_risk_board: ["Risk board generated","▦"],
+  generate_prevention_scorecard: ["Scorecard generated","▦"], generate_shift_handover: ["Handover generated","▦"],
+};
+function toolMeta(name) { return TOOL_LABEL[name] || [human(name), "•"]; }
+
+function renderTimeline(r) {
+  const tl = $("timeline");
+  const items = (r.tool_calls || []).map((t) => {
+    const [label] = toolMeta(t.tool_name);
+    return { time: fmtTime(t.timestamp), label, status: t.status, policy: t.policy_check };
+  });
+  if (!items.length) { tl.innerHTML = `<div class="empty">Events will appear as the agent observes, predicts, and acts.</div>`; return; }
+  tl.innerHTML = items.map((it) => {
+    const c = STATUS_C[it.status] || "var(--accent)";
+    const st = it.status === "blocked" ? `<span class="st" style="color:var(--p0)">BLOCKED · ${it.policy}</span>` :
+               it.status === "completed" ? "" : `<span class="st" style="color:${c}">${it.status}</span>`;
+    return `<div class="tl-item"><div class="t">${it.time}</div><div class="marker" style="--c:${c}"></div>
+      <div class="lbl">${it.label}${st}</div></div>`;
+  }).join("");
+  tl.scrollTop = tl.scrollHeight;
+}
+
+function renderActions(r) {
+  const el = $("actions");
+  const acts = r.actions || [];
+  $("actCount").textContent = acts.length;
+  if (!acts.length) { el.innerHTML = `<div class="empty">No interventions yet.</div>`; return; }
+  el.innerHTML = [...acts].reverse().map((a) => {
+    const c = STATUS_C[a.status] || "var(--txt-faint)";
+    const msg = (a.payload && (a.payload.message || a.payload.task || a.payload.reason)) || human(a.action_type);
+    return `<div class="row">
+      <div class="ic">${actIcon(a.action_type)}</div>
+      <div class="main"><div class="nm">${msg}</div><div class="sub">${human(a.owner_role)}</div></div>
+      <div class="st" style="color:${c};background:rgba(255,255,255,0.04)">${a.status}</div></div>`;
+  }).join("");
+}
+function actIcon(t) { return { warning:"🔆", notification:"🔔", task:"✎", hold:"⛔", safe_stop_request:"🛑", emergency_call:"🚑" }[t] || "•"; }
+
+function renderTools(r) {
+  const el = $("tools");
+  const tools = r.tool_calls || [];
+  $("toolCount").textContent = tools.length;
+  if (!tools.length) { el.innerHTML = `<div class="empty">Agent tool calls will stream here.</div>`; return; }
+  el.innerHTML = [...tools].reverse().map((t) => {
+    const [label, ic] = toolMeta(t.tool_name);
+    const c = STATUS_C[t.status] || "var(--txt-faint)";
+    const sub = t.status === "blocked" ? `gate: ${t.policy_check}` : t.tool_name;
+    return `<div class="row">
+      <div class="ic" style="color:${c}">${ic}</div>
+      <div class="main"><div class="nm">${label}</div><div class="sub" style="color:${t.status==='blocked'?'var(--p0)':''}">${sub}</div></div>
+      <div class="st" style="color:${c};background:rgba(255,255,255,0.04)">${t.status}</div></div>`;
+  }).join("");
+}
+
+function renderScorecard(r) {
+  const sc = r.scorecard || {};
+  $("scPred").textContent = sc.predicted_risks ?? r.risks.length;
+  $("scVer").textContent = sc.verified_reductions ?? r.risks.filter((x)=>x.status==="mitigated").length;
+  $("scOpen").textContent = sc.open_items ?? r.actions.filter((a)=>!["completed","failed"].includes(a.status)).length;
+  $("scEm").textContent = sc.emergency_incidents ?? r.incidents.length;
+}
+
+function renderEmergency(r) {
+  const inc = r.incidents.find((i) => !["handed_off","closed"].includes(i.status));
+  const bar = $("emBar");
+  if (inc) {
+    bar.classList.add("show");
+    $("emTxt").textContent = `P0 ${human(inc.emergency_type).toUpperCase()} EMERGENCY`;
+    $("emSub").textContent = `${human(inc.zone_id)} · nearest entry: ${inc.nearest_entry} · responders: ${(inc.responders_notified||[]).join(", ")||"pending"}`;
+  } else bar.classList.remove("show");
+}
+
+/* ---------- drawer (risk detail) ---------- */
+function openRisk(id) {
+  const r = state.run, rk = r.risks.find((x) => x.risk_id === id);
+  if (!rk) return;
+  const c = sevColor(rk.severity);
+  $("drChip").innerHTML = `<span class="chip" style="color:${c};background:${(SEV[rk.severity]||SEV.P3).bg}">${rk.severity} · ${rk.status.toUpperCase()}</span>`;
+  $("drTitle").textContent = human(rk.risk_type);
+  const evMap = {}; (r.evidence || []).forEach((e) => evMap[e.evidence_id] = e);
+  const evs = (rk.evidence_ids || []).map((id) => evMap[id]).filter(Boolean);
+  const actMap = {}; (r.actions || []).forEach((a) => actMap[a.action_id] = a);
+  const taken = (rk.actions_taken || []).map((id) => actMap[id]).filter(Boolean);
+  $("drBody").innerHTML = `
+    <div class="sect"><h4>Assessment</h4>
+      <div class="kv">
+        <span class="k">zone</span><span>${human(rk.zone_id)}</span>
+        <span class="k">confidence</span><span>${Math.round((rk.confidence||0)*100)}%</span>
+        <span class="k">probability</span><span>${rk.probability}</span>
+        <span class="k">risk score</span><span style="color:${c}">${(rk.risk_score||0).toFixed(3)}</span>
+        <span class="k">time to event</span><span>${rk.time_to_event_seconds!=null?rk.time_to_event_seconds+"s":"—"}</span>
+        <span class="k">cameras</span><span>${(rk.camera_ids||[]).join(", ")||"—"}</span>
+      </div></div>
+    ${rk.applicable_policy_ids?.length ? `<div class="sect"><h4>Applicable Policy</h4><ul class="clean">${rk.applicable_policy_ids.map((p)=>`<li>${p}</li>`).join("")}</ul></div>`:""}
+    <div class="sect"><h4>Why · Evidence (${evs.length})</h4>
+      ${evs.length ? evs.map((e)=>`<div class="ev"><div class="et">${e.type} · ${e.source}${e.confidence!=null?` · ${Math.round(e.confidence*100)}%`:""}</div><div class="ed">${e.description}</div><div class="eu">${e.uri}</div></div>`).join("") : `<div class="empty">No evidence linked.</div>`}
+    </div>
+    <div class="sect"><h4>Recommended Actions</h4><ul class="clean">${(rk.recommended_actions||[]).map((a)=>`<li>${a}</li>`).join("")||"<li>Monitoring</li>"}</ul></div>
+    <div class="sect"><h4>Actions Taken (${taken.length})</h4>
+      ${taken.length ? taken.map((a)=>`<div class="row"><div class="ic">${actIcon(a.action_type)}</div><div class="main"><div class="nm">${human(a.action_type)}</div><div class="sub">${human(a.owner_role)}</div></div><div class="st" style="color:${STATUS_C[a.status]||'var(--txt-faint)'};background:rgba(255,255,255,0.04)">${a.status}</div></div>`).join("") : `<div class="empty">None yet.</div>`}
+    </div>
+    <div class="sect"><h4>Verification</h4><div class="kv"><span class="k">status</span><span style="color:${rk.status==='mitigated'?'var(--ok)':rk.status==='unresolved'?'var(--p2)':'var(--txt-dim)'}">${rk.status}</span></div></div>`;
+  $("drawer").classList.add("open");
+}
+function closeDrawer() { $("drawer").classList.remove("open"); }
+
+/* ---------- modals ---------- */
+function openModal(em) { $("modal").classList.toggle("em", !!em); $("scrim").classList.add("open"); }
+function closeModal() { $("scrim").classList.remove("open"); }
+
+function showEmergency() {
+  const r = state.run; const inc = [...r.incidents].reverse().find(Boolean);
+  if (!inc) return;
+  const p = inc.escalation_payload || {};
+  $("moTitle").innerHTML = `🚨 Emergency Console · <span style="color:var(--p0)">P0 ${human(inc.emergency_type)}</span>`;
+  $("moBody").innerHTML = `
+    <div class="grid2">
+      <div><h4 style="color:var(--p0);font-size:11px;letter-spacing:1.5px;margin:0 0 8px">LOCATION</h4>
+        <div class="kv"><span class="k">site</span><span>${inc.site_id}</span><span class="k">building</span><span>${inc.building}</span>
+        <span class="k">zone</span><span>${human(inc.zone_id)}</span><span class="k">nearest entry</span><span style="color:var(--accent)">${inc.nearest_entry}</span>
+        <span class="k">cameras</span><span>${(inc.camera_ids||[]).join(", ")}</span></div></div>
+      <div><h4 style="color:var(--p0);font-size:11px;letter-spacing:1.5px;margin:0 0 8px">RESPONSE</h4>
+        <div class="kv"><span class="k">status</span><span style="color:var(--p2)">${human(inc.status)}</span>
+        <span class="k">responders</span><span>${(inc.responders_notified||[]).map(human).join(", ")||"pending"}</span>
+        <span class="k">callback</span><span>${p.callback_route||"—"}</span><span class="k">dispatched</span><span>${p.timestamp?fmtTime(p.timestamp):"—"}</span></div></div>
+    </div>
+    <div class="ho-sect" style="margin-top:18px"><h4>Observed Condition</h4><div style="font-size:13.5px;line-height:1.5">${inc.observed_condition}</div></div>
+    ${inc.hazards_nearby?.length?`<div class="ho-sect"><h4>Hazards Nearby</h4>${inc.hazards_nearby.map((h)=>`<span class="tag hz" style="display:inline-block;margin:0 6px 6px 0">⚠ ${h}</span>`).join("")}</div>`:""}
+    <div class="ho-sect"><h4>Mock Dispatch Payload</h4>
+      <pre style="font:500 11px var(--mono);color:var(--txt-dim);background:rgba(0,0,0,0.3);padding:12px;border-radius:9px;overflow:auto;border:1px solid var(--line)">${JSON.stringify(p,null,2)}</pre></div>`;
+  openModal(true);
+}
+
+async function showHandover() {
+  const r = state.run; if (!r) return;
+  let h; try { h = await api(`/api/runs/${r.run_id}/handover`); } catch { return; }
+  $("moTitle").innerHTML = `▦ Shift Handover · <span style="color:var(--txt-dim)">${human(h.zone_id||r.scenario.zone_id)}</span>`;
+  const list = (arr, empty) => arr && arr.length ? `<ul class="clean">${arr.map((x)=>`<li>${x}</li>`).join("")}</ul>` : `<div class="empty" style="text-align:left;padding:4px 0">${empty}</div>`;
+  $("moBody").innerHTML = `
+    <div class="grid2">
+      <div class="ho-sect"><h4>Resolved Risks</h4>${list(h.resolved_risks,"None resolved")}</div>
+      <div class="ho-sect"><h4>Open Risks</h4>${list(h.open_risks,"None open")}</div>
+      <div class="ho-sect"><h4>Emergency Incidents</h4>${list(h.emergency_incidents,"None")}</div>
+      <div class="ho-sect"><h4>Quality Holds</h4>${list(h.quality_holds,"None")}</div>
+      <div class="ho-sect"><h4>Maintenance Watch</h4>${list(h.maintenance_watch_items,"None")}</div>
+      <div class="ho-sect"><h4>Unresolved Tasks</h4>${list(h.unresolved_tasks,"None")}</div>
+    </div>
+    <div class="ho-sect"><h4>Recommendations for Next Shift</h4>${list(h.recommendations,"No recommendations")}</div>`;
+  openModal(false);
+}
+
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeDrawer(); closeModal(); } });
+init();
+</script>
+</body>
+</html>
